@@ -17,7 +17,7 @@ static MenuItem menu[] = {
     {"F start", M_START, 0},
     {"F end", M_END, 0},
     {"Step", M_STEP, ARRAY_SIZE(StepFrequencyTable)},
-    {"Modulation", M_MODULATION, ARRAY_SIZE(modulationTypeOptions) - 1},
+    {"Modulation", M_MODULATION, ARRAY_SIZE(modulationTypeOptions) - 2},
     {"BW", M_BW, 4},
     {"Gain", M_GAIN, ARRAY_SIZE(gainTable)},
     {"SQ level", M_SQ, 10},

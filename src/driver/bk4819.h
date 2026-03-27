@@ -56,6 +56,7 @@ typedef enum {
   MOD_RAW,
   MOD_WFM,
   MOD_PRST,
+  MOD_DIG,
 } ModulationType;
 
 typedef enum {
@@ -72,6 +73,8 @@ enum BK4819_FilterBandwidth_t {
   BK4819_FILTER_BW_NARROW,
   BK4819_FILTER_BW_NARROWER,
   BK4819_FILTER_BW_SOMETHING,
+  BK4819_FILTER_BW_DIGITAL_WIDE,
+  BK4819_FILTER_BW_DIGITAL_NARROW,
 };
 
 typedef enum BK4819_FilterBandwidth_t BK4819_FilterBandwidth_t;
@@ -196,6 +199,9 @@ void BK4819_PlayRogerMDC(void);
 void BK4819_PlayRogerUgly(void);
 
 void BK4819_Enable_AfDac_DiscMode_TxDsp(void);
+
+void BK4819_DigitalTxSetup(void);
+void BK4819_InitMicBias(void);
 
 void BK4819_GetVoxAmp(uint16_t *pResult);
 void BK4819_PlayDTMFEx(bool bLocalLoopback, char Code);

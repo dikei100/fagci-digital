@@ -24,6 +24,7 @@ static const uint16_t modTypeReg47Values[] = {
     [MOD_RAW] = BK4819_AF_RAW,    //
     [MOD_WFM] = BK4819_AF_FM,     //
     [MOD_PRST] = BK4819_AF_RAW,   // for some reason =)
+    [MOD_DIG] = BK4819_AF_FM,     // flat baseband via FM demod + disabled filters
 };
 static const uint8_t squelchTypeValues[4] = {0x88, 0xAA, 0xCC, 0xFF};
 static const uint8_t DTMF_COEFFS[] = {111, 107, 103, 98, 80,  71,  58,  44,
@@ -326,6 +327,18 @@ typedef enum {
 } BK4819_IJV_Filter_Bandwidth_t;
 
 void BK4819_SetFilterBandwidth(BK4819_FilterBandwidth_t Bandwidth) {
+  // Digital filter bandwidths
+  if (Bandwidth >= BK4819_FILTER_BW_DIGITAL_WIDE) {
+    static const uint16_t dv[] = {0x47A8, 0x7800}; // wide, narrow
+    BK4819_WriteRegister(BK4819_REG_43,
+                         dv[Bandwidth - BK4819_FILTER_BW_DIGITAL_WIDE]);
+    BK4819_WriteRegister(BK4819_REG_7E,
+                         BK4819_ReadRegister(BK4819_REG_7E) & 0xFFC0);
+    BK4819_WriteRegister(BK4819_REG_2B,
+                         (BK4819_ReadRegister(BK4819_REG_2B) & 0xF8F8) | 0x0707);
+    return;
+  }
+
   static const BK4819_IJV_Filter_Bandwidth_t OLD_BW_TO_IJV_BW[] = {
       [BK4819_FILTER_BW_WIDE] = BK4819_FILTER_BW_12k,
       [BK4819_FILTER_BW_NARROW] = BK4819_FILTER_BW_9k,
@@ -486,7 +499,9 @@ uint8_t BK4819_GetAFC() {
 
 void BK4819_SetModulation(ModulationType type) {
   bool isSsb = type == MOD_LSB || type == MOD_USB;
-  bool isFm = type == MOD_FM || type == MOD_WFM;
+  bool isFm = type == MOD_FM || type == MOD_WFM || type == MOD_DIG;
+  if (type == MOD_DIG)
+    BK4819_InitMicBias();
   BK4819_SetAF(modTypeReg47Values[type]);
   BK4819_SetRegValue(afDacGainRegSpec, 0x8);
   BK4819_WriteRegister(0x3D, isSsb ? 0 : 0x2AAB);
@@ -626,6 +641,26 @@ void BK4819_PrepareTransmit(void) {
   BK4819_ExitBypass();
   BK4819_ExitTxMute();
   BK4819_TxOn_Beep();
+}
+
+void BK4819_DigitalTxSetup(void) {
+  // Disable TX filter (bit 15), clear sub-audio filter bits [5:3]
+  BK4819_WriteRegister(BK4819_REG_7E,
+                       (BK4819_ReadRegister(BK4819_REG_7E) & 0xFFC7) | 0x8000);
+  // Disable DC filter and sub-audio filters
+  BK4819_WriteRegister(0x2B,
+                       (BK4819_ReadRegister(0x2B) & 0xFFF8) | 0x7);
+  // Flat MIC sensitivity
+  BK4819_WriteRegister(BK4819_REG_7D, 0xE940);
+}
+
+static bool gMicBiasInitDone;
+
+void BK4819_InitMicBias(void) {
+  if (gMicBiasInitDone) return;
+  gMicBiasInitDone = true;
+  BK4819_WriteRegister(BK4819_REG_30, 4);
+  SYSTEM_DelayMs(250);
 }
 
 void BK4819_TxOn_Beep(void) {

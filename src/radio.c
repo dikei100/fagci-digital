@@ -51,8 +51,8 @@ const uint16_t StepFrequencyTable[15] = {
     250, 500, 625, 833, 900, 1000, 1250, 2500, 5000, 10000, 50000,
 };
 
-const char *modulationTypeOptions[8] = {"FM",  "AM",  "LSB", "USB",
-                                        "BYP", "RAW", "WFM", "Preset"};
+const char *modulationTypeOptions[9] = {"FM",  "AM",  "LSB", "USB",
+                                        "BYP", "RAW", "WFM", "Preset", "DIG"};
 const char *powerNames[4] = {"ULOW, LOW", "MID", "HIGH"};
 const char *bwNames[5] = {"25k", "12.5k", "6.25k", "25k+"};
 const char *bwNamesSiAMFM[5] = {"6k", "4k", "3k", "1k"};
@@ -87,6 +87,10 @@ static const SI47XX_FilterBW SI_BW_MAP_AMFM[] = {
 void RADIO_HasSi() { hasSI = BK1080_ReadRegister(1) != 0x1080; }
 
 Radio RADIO_Selector(uint32_t freq, ModulationType mod) {
+  if (mod == MOD_DIG) {
+    return RADIO_BK4819;
+  }
+
   if (gVFO[gSettings.activeVFO].radio != RADIO_UNKNOWN) {
     return gVFO[gSettings.activeVFO].radio;
   }
@@ -207,6 +211,13 @@ static void onPresetUpdate(void) {
 }
 
 static void setupToneDetection() {
+  // DIG mode: no tone detection (would interfere with digital data)
+  if (RADIO_GetModulation() == MOD_DIG) {
+    BK4819_DisableDTMF();
+    BK4819_WriteRegister(BK4819_REG_3F, 0);
+    return;
+  }
+
   uint16_t InterruptMask =
       BK4819_REG_3F_CxCSS_TAIL | BK4819_REG_3F_DTMF_5TONE_FOUND;
   if (gSettings.dtmfdecode) {
@@ -289,11 +300,12 @@ static bool isSqOpenSimple(uint16_t r) {
 }
 
 static void toggleBK4819(bool on) {
-  // Log("Toggle bk4819 audio %u", on);
+  bool isDig = RADIO_GetModulation() == MOD_DIG;
+  if (isDig && !on) return; // keep audio active in DIG mode
   if (on) {
     BK4819_ToggleAFDAC(true);
     BK4819_ToggleAFBit(true);
-    SYSTEM_DelayMs(8);
+    if (!isDig) SYSTEM_DelayMs(8);
     AUDIO_ToggleSpeaker(true);
   } else {
     AUDIO_ToggleSpeaker(false);
@@ -517,6 +529,8 @@ void RADIO_ToggleTX(bool on) {
 
 void RADIO_ToggleTXEX(bool on, uint32_t txF, uint8_t power, bool paEnabled) {
   bool lastOn = gTxState == TX_ON;
+  bool isDig = RADIO_GetModulation() == MOD_DIG;
+
   if (gTxState == on) {
     return;
   }
@@ -524,14 +538,15 @@ void RADIO_ToggleTXEX(bool on, uint32_t txF, uint8_t power, bool paEnabled) {
   gTxState = on ? RADIO_GetTXState(txF) : TX_UNKNOWN;
 
   if (gTxState == TX_ON) {
-    RADIO_ToggleRX(false);
+    if (!isDig)
+      RADIO_ToggleRX(false);
 
     BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, false);
-
     BK4819_TuneTo(txF, true);
-
     BOARD_ToggleRed(gSettings.brightness > 1);
     BK4819_PrepareTransmit();
+    if (isDig)
+      BK4819_DigitalTxSetup();
 
     SYSTEM_DelayMs(10);
     BK4819_ToggleGpioOut(BK4819_GPIO1_PIN29_PA_ENABLE, paEnabled);
@@ -539,11 +554,14 @@ void RADIO_ToggleTXEX(bool on, uint32_t txF, uint8_t power, bool paEnabled) {
     BK4819_SetupPowerAmplifier(power, txF);
     SYSTEM_DelayMs(10);
 
-    RADIO_EnableCxCSS();
+    if (!isDig)
+      RADIO_EnableCxCSS();
   } else if (lastOn) {
-    BK4819_ExitDTMF_TX(true); // also prepares to tx ste
+    if (!isDig) {
+      BK4819_ExitDTMF_TX(true);
+      sendEOT();
+    }
 
-    sendEOT();
     toggleBK1080SI4732(false);
     BOARD_ToggleRed(false);
     BK4819_TurnsOffTones_TurnsOnRX();
@@ -698,7 +716,14 @@ void RADIO_SetFilterBandwidth(BK4819_FilterBandwidth_t bw) {
   ModulationType mod = RADIO_GetModulation();
   switch (RADIO_GetRadio()) {
   case RADIO_BK4819:
-    BK4819_SetFilterBandwidth(bw);
+    if (mod == MOD_DIG) {
+      // Remap to digital filter bandwidths
+      BK4819_SetFilterBandwidth(bw == BK4819_FILTER_BW_WIDE
+                                    ? BK4819_FILTER_BW_DIGITAL_WIDE
+                                    : BK4819_FILTER_BW_DIGITAL_NARROW);
+    } else {
+      BK4819_SetFilterBandwidth(bw);
+    }
     break;
   case RADIO_BK1080:
     break;
@@ -722,10 +747,15 @@ void RADIO_SetupBandParams() {
   switch (RADIO_GetRadio()) {
   case RADIO_BK4819:
     BK4819_SquelchType(b->squelchType);
-    BK4819_Squelch(b->squelch, fMid, gSettings.sqlOpenTime,
-                   gSettings.sqlCloseTime);
+    if (mod == MOD_DIG) {
+      // DIG mode: squelch always open, zero delay
+      BK4819_Squelch(0, fMid, 0, 0);
+    } else {
+      BK4819_Squelch(b->squelch, fMid, gSettings.sqlOpenTime,
+                     gSettings.sqlCloseTime);
+    }
     BK4819_SetModulation(mod);
-    if (gSettings.scrambler) {
+    if (mod != MOD_DIG && gSettings.scrambler) {
       BK4819_EnableScramble(gSettings.scrambler);
     } else {
       BK4819_DisableScramble();
@@ -805,6 +835,9 @@ uint16_t RADIO_GetS() {
 }
 
 bool RADIO_IsSquelchOpen(const Loot *msm) {
+  if (RADIO_GetModulation() == MOD_DIG) {
+    return true;
+  }
   if (RADIO_GetRadio() == RADIO_BK4819) {
     if (isSimpleSql()) {
       return isSqOpenSimple(msm->rssi);
@@ -1027,15 +1060,15 @@ void RADIO_NextPresetFreqXBand(bool next) {
 }
 
 static ModulationType MODS_BK4819[] = {
-    MOD_FM, MOD_AM, MOD_USB, MOD_BYP, MOD_RAW, MOD_WFM,
+    MOD_FM, MOD_AM, MOD_USB, MOD_BYP, MOD_RAW, MOD_WFM, MOD_DIG,
 };
 
 static ModulationType MODS_BOTH_PATCH[] = {
-    MOD_FM, MOD_AM, MOD_USB, MOD_LSB, MOD_BYP, MOD_RAW, MOD_WFM,
+    MOD_FM, MOD_AM, MOD_USB, MOD_LSB, MOD_BYP, MOD_RAW, MOD_WFM, MOD_DIG,
 };
 
 static ModulationType MODS_BOTH[] = {
-    MOD_FM, MOD_AM, MOD_USB, MOD_BYP, MOD_RAW, MOD_WFM,
+    MOD_FM, MOD_AM, MOD_USB, MOD_BYP, MOD_RAW, MOD_WFM, MOD_DIG,
 };
 
 static ModulationType MODS_BK1080[] = {
