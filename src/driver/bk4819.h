@@ -201,6 +201,7 @@ void BK4819_PlayRogerUgly(void);
 void BK4819_Enable_AfDac_DiscMode_TxDsp(void);
 
 void BK4819_DigitalTxSetup(void);
+void BK4819_DigitalTxCleanup(void);
 void BK4819_InitMicBias(void);
 
 void BK4819_GetVoxAmp(uint16_t *pResult);

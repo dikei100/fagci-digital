@@ -326,17 +326,30 @@ typedef enum {
   BK4819_FILTER_BW_6k       //  "U 6K"		//9
 } BK4819_IJV_Filter_Bandwidth_t;
 
+static bool gDigitalFilters;
+static uint16_t gSavedReg7E, gSavedReg2B;
+
 void BK4819_SetFilterBandwidth(BK4819_FilterBandwidth_t Bandwidth) {
   // Digital filter bandwidths
   if (Bandwidth >= BK4819_FILTER_BW_DIGITAL_WIDE) {
     static const uint16_t dv[] = {0x47A8, 0x7800}; // wide, narrow
     BK4819_WriteRegister(BK4819_REG_43,
                          dv[Bandwidth - BK4819_FILTER_BW_DIGITAL_WIDE]);
+    if (!gDigitalFilters) {
+      gSavedReg7E = BK4819_ReadRegister(BK4819_REG_7E);
+      gSavedReg2B = BK4819_ReadRegister(BK4819_REG_2B);
+      gDigitalFilters = true;
+    }
     BK4819_WriteRegister(BK4819_REG_7E,
                          BK4819_ReadRegister(BK4819_REG_7E) & 0xFFC0);
     BK4819_WriteRegister(BK4819_REG_2B,
                          (BK4819_ReadRegister(BK4819_REG_2B) & 0xF8F8) | 0x0707);
     return;
+  }
+  if (gDigitalFilters) {
+    gDigitalFilters = false;
+    BK4819_WriteRegister(BK4819_REG_7E, gSavedReg7E);
+    BK4819_WriteRegister(BK4819_REG_2B, gSavedReg2B);
   }
 
   static const BK4819_IJV_Filter_Bandwidth_t OLD_BW_TO_IJV_BW[] = {
@@ -500,8 +513,6 @@ uint8_t BK4819_GetAFC() {
 void BK4819_SetModulation(ModulationType type) {
   bool isSsb = type == MOD_LSB || type == MOD_USB;
   bool isFm = type == MOD_FM || type == MOD_WFM || type == MOD_DIG;
-  if (type == MOD_DIG)
-    BK4819_InitMicBias();
   BK4819_SetAF(modTypeReg47Values[type]);
   BK4819_SetRegValue(afDacGainRegSpec, 0x8);
   BK4819_WriteRegister(0x3D, isSsb ? 0 : 0x2AAB);
@@ -643,7 +654,10 @@ void BK4819_PrepareTransmit(void) {
   BK4819_TxOn_Beep();
 }
 
+static uint16_t gSavedReg7D;
+
 void BK4819_DigitalTxSetup(void) {
+  BK4819_InitMicBias();
   // Disable TX filter (bit 15), clear sub-audio filter bits [5:3]
   BK4819_WriteRegister(BK4819_REG_7E,
                        (BK4819_ReadRegister(BK4819_REG_7E) & 0xFFC7) | 0x8000);
@@ -651,7 +665,12 @@ void BK4819_DigitalTxSetup(void) {
   BK4819_WriteRegister(0x2B,
                        (BK4819_ReadRegister(0x2B) & 0xFFF8) | 0x7);
   // Flat MIC sensitivity
+  gSavedReg7D = BK4819_ReadRegister(BK4819_REG_7D);
   BK4819_WriteRegister(BK4819_REG_7D, 0xE940);
+}
+
+void BK4819_DigitalTxCleanup(void) {
+  BK4819_WriteRegister(BK4819_REG_7D, gSavedReg7D);
 }
 
 static bool gMicBiasInitDone;

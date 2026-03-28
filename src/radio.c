@@ -572,6 +572,11 @@ void RADIO_ToggleTXEX(bool on, uint32_t txF, uint8_t power, bool paEnabled) {
 
     setupToneDetection();
     BK4819_TuneTo(radio->rx.f, true);
+    if (isDig) {
+      BK4819_DigitalTxCleanup();
+      RADIO_SetupBandParams();
+      gIsListening = false;
+    }
   }
 }
 
@@ -780,9 +785,8 @@ void RADIO_SetupBandParams() {
   default:
     break;
   }
-  RADIO_SetGain(b->gainIndex);
-  // Log("Set mod %s", modulationTypeOptions[mod]);
   RADIO_SetFilterBandwidth(b->bw);
+  RADIO_SetGain(b->gainIndex);
   // Log("RADIO_SetupBandParams end");
 }
 

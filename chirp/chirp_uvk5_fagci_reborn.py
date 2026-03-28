@@ -811,10 +811,10 @@ RADIO_LIST = [
 BANDWIDTH_LIST = ["25k", "12.5k", "6.25k", "25k+"]
 
 MODULATION_LIST = ["FM", "AM", "LSB", "USB",
-                   "BYP", "RAW", "WFM", "Preset"]
+                   "BYP", "RAW", "WFM", "Preset", "DIG"]
 
 MODULATION_LIST_MAP = ["FM", "AM", "LSB", "USB",
-                       "DV", "CW", "WFM", "Auto"]
+                       "DV", "CW", "WFM", "Auto", "DIG"]
 
 STEP_NAMES = [
     "0.02kHz",
