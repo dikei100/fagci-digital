@@ -18,7 +18,7 @@ This gives a clean baseband path suitable for external modems. No on-device code
 
 ### Other changes from upstream
 
-- Generator app removed to free flash space for DIG mode register management code
+- Generator app restored (About app removed to free flash space)
 - DIG mode added to CHIRP module
 
 ## Required hardware modification
@@ -60,7 +60,7 @@ Toolchain: `arm-none-eabi-gcc` (CI uses 13.3.Rel1). Output artifacts:
 - `bin/firmware.bin` - raw binary
 - `bin/firmware.packed.bin` - flashable via [uvtools](https://egzumer.github.io/uvtools/)
 
-Flash budget: 60 KB (61439 bytes max). Currently ~444 bytes free.
+Flash budget: 60 KB (61439 bytes max). Currently ~56 bytes free.
 
 ## Original project
 
