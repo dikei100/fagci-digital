@@ -6,13 +6,12 @@ Fork of [fagci/uvk5-fagci-reborn](https://github.com/fagci/uvk5-fagci-reborn) ad
 
 **MOD_DIG** - a flat audio passthrough mode for 9600 baud GFSK / M17 4-FSK digital communications via an external TNC (e.g. Mobilinkd TNC4).
 
-The BK4819 transceiver is configured with all speech-optimized DSP disabled:
-- Pre-emphasis / de-emphasis off
-- 300 Hz HPF and 3 kHz LPF bypassed
-- AGC, ALC, and compander disabled
-- DC and sub-audio filters disabled during TX
+The BK4819 transceiver is configured with speech-optimized DSP disabled:
+- 300 Hz HPF and 3 kHz LPF bypassed (REG_7E bits [5:0] cleared)
+- DC and sub-audio filters disabled (REG_2B, during both RX and TX)
+- MIC sensitivity set to flat during TX (REG_7D)
 - Squelch forced open, DTMF/tone detection off
-- AFC enabled (FM demodulator path)
+- AFC enabled (FM demodulator path via AF_FM)
 
 This gives a clean baseband path suitable for external modems. No on-device codec is involved.
 
@@ -45,7 +44,7 @@ Refer to [Mobilinkd's documentation](https://mobilinkd.com/) for detailed wiring
 
 - On first DIG mode TX, the MIC ADC bias is initialized (one-time 250 ms delay)
 - TX filters, sub-audio injection, and scrambler are automatically disabled
-- Audio path stays active during TX for fast turnaround (~79 ms vs ~378 ms stock)
+- Audio path stays active during TX (AF DAC/speaker not toggled) for faster turnaround
 - All modified BK4819 registers are saved and restored on TX exit
 
 ## Build
