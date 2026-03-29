@@ -2,7 +2,7 @@
 #include "../driver/st7565.h"
 #include "../ui/graphics.h"
 #include "../ui/statusline.h"
-#include "about.h"
+#include "generator.h"
 #include "analyzer.h"
 #include "appslist.h"
 #include "finput.h"
@@ -64,8 +64,8 @@ const AppType_t appsAvailableToRun[RUN_APPS_COUNT] = {
     APP_LOOT_LIST,    //
     APP_PRESETS_LIST, //
     APP_MEMVIEW,      //
+    APP_GENERATOR,    //
     // APP_LEVEL,        //
-    APP_ABOUT, //
 };
 
 const App apps[APPS_COUNT] = {
@@ -92,9 +92,10 @@ const App apps[APPS_COUNT] = {
     {"Settings", SETTINGS_init, NULL, SETTINGS_render, SETTINGS_key, NULL},
     {"1 VFO", VFO1_init, VFO1_update, VFO1_render, VFO1_key, NULL},
     {"2 VFO", VFO1_init, VFO2_update, VFO2_render, VFO2_key, NULL},
+    {"Generator", GENERATOR_init, GENERATOR_update, GENERATOR_render,
+     GENERATOR_key, NULL},
     // {"Level", LEVEL_init, LEVEL_update, LEVEL_render, LEVEL_key,
     // LEVEL_deinit},
-    {"ABOUT", NULL, NULL, ABOUT_Render, ABOUT_key, NULL},
 };
 
 bool APPS_key(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {

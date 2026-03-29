@@ -24,8 +24,8 @@ typedef enum {
   APP_SETTINGS,
   APP_VFO1,
   APP_VFO2,
+  APP_GENERATOR,
   // APP_LEVEL,
-  APP_ABOUT,
 } AppType_t;
 
 typedef struct App {

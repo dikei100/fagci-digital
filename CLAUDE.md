@@ -22,7 +22,7 @@ Compiler flags: `-Os -mcpu=cortex-m0 -fshort-enums -flto=auto -std=c2x`. No floa
 
 ## Critical Constraint: Flash Budget
 
-Flash is 60KB (61439 bytes per flasher). The firmware currently uses **60996 bytes (444 bytes free)** after removing the Generator app to make room for DIG mode fixes. Every byte counts. When adding code:
+Flash is 60KB (61439 bytes per flasher). The firmware currently uses **61384 bytes (56 bytes free)** after swapping the About app for the restored Generator app. Every byte counts. When adding code:
 - Avoid new string literals, use existing ones where possible
 - Prefer direct register writes over `BK4819_SetRegValue()` with `RegisterSpec` (the string name field costs flash)
 - Combine code paths, use lookup tables instead of switch/if chains
@@ -43,7 +43,7 @@ Size-saving techniques that were used and should be continued:
    - `SVC_KEYBOARD` (pri 0) → `SVC_LISTEN` (50) → `SVC_SCAN` (55) → `SVC_FC` (57) → `SVC_BEACON` (58) → `SVC_BAT_SAVE` (60) → `SVC_APPS` (100) → `SVC_SYS` (150) → `SVC_RENDER` (255)
    - Toggled with `SVC_Toggle(svc, on, interval_ms)`
 
-3. **Apps** (`src/apps/apps.h/c`) — 18 apps with LIFO stack (8 deep). Each app implements: `init()`, `update()`, `render()`, `key()`, `deinit()`. Run with `APPS_run(APP_TYPE)`, exit with `APPS_exit()`. Generator app was removed to free flash for DIG mode fixes.
+3. **Apps** (`src/apps/apps.h/c`) — 18 apps with LIFO stack (8 deep). Each app implements: `init()`, `update()`, `render()`, `key()`, `deinit()`. Run with `APPS_run(APP_TYPE)`, exit with `APPS_exit()`. About app was removed to free flash for the restored Generator app.
 
 ### Radio Control (`src/radio.h/c`)
 

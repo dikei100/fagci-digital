@@ -936,7 +936,7 @@ APP_LIST = [
     "Settings",
     "1 VFO",
     "2 VFO",
-    "ABOUT"
+    "Generator"
 ]
 
 BATTERY_TYPE_NAMES = ["1600mAh", "2200mAh", "3500mAh"]
